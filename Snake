@@ -1,0 +1,184 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+
+namespace Test
+{
+    class Program
+    {
+        public static void Main()
+        {
+            var a = new Game();
+            a.Start();
+        }
+    }
+
+    class Game
+    {
+        enum Direction { Up, Down, Right, Left }
+        private Direction direction;
+        public int GameSpeed { get; private set; } = 60;
+        private Snake snake;
+        private Food food;
+        static public int WindowWidth { get; private set; }
+        static public int WindowHeight { get; private set; }
+        private readonly Dictionary<Direction, Point> MoveTo = new Dictionary<Direction, Point>()
+        {
+            {Direction.Left, new Point(-1,0) },
+            {Direction.Right, new Point(1,0) },
+            {Direction.Up, new Point(0,-1 ) },
+            {Direction.Down, new Point(0,1) }
+        };
+
+        public void Start()
+        {
+            WindowWidth = Console.WindowWidth - 1;
+            WindowHeight = Console.WindowHeight - 2;
+            snake = new Snake();
+            food = new Food();
+            direction = Direction.Down;
+
+            while (true)
+            {
+                DrawMap();
+                Thread.Sleep(GameSpeed);
+                if (Console.KeyAvailable)
+                    ChangeDirection(Console.ReadKey(true));
+            }
+        }
+
+        private void DrawMap()
+        {
+            for (var a = 0; a < snake.Position.Count; a++)
+            {
+                Console.SetCursorPosition(snake.Position[a].X, snake.Position[a].Y);
+                if (a + 1 < snake.Position.Count)
+                    Console.Write("*");
+                else
+                    Console.Write(" ");
+            }
+            Move();
+            Console.SetCursorPosition(food.Position.X, food.Position.Y);
+            Console.Write("@");
+        }
+
+        private void Move()
+        {
+            for (var i = snake.Position.Count - 1; i >= 0; i--)
+            {
+                if (i == 0)
+                {
+                    snake.Position[i] += MoveTo[direction];
+                    if (CheckGameOver())
+                    {
+                        Console.Clear();
+                        Program.Main();
+                    }
+                    else if (snake.Position[i] == food.Position)
+                    {
+                        GameSpeed = GameSpeed > 15 ? GameSpeed - 1 : GameSpeed;
+                        snake.Position.Add((Point)snake.Position[snake.Position.Count - 1].Clone());
+                        food.Update();
+                    }
+                }
+                else
+                    snake.Position[i] = (Point)snake.Position[i - 1].Clone();
+            }
+        }
+
+        private bool CheckGameOver()
+        {
+            var answer = false;
+            for (var i = 1; i < snake.Position.Count; i++)
+                if (snake.Position[i] == snake.Position[0])
+                    answer = true;
+            return answer;
+        }
+
+        private void ChangeDirection(ConsoleKeyInfo keyInfo)
+        {
+            switch (keyInfo.Key)
+            {
+                case ConsoleKey.A:
+                    direction = direction == Direction.Right ? direction : Direction.Left;
+                    break;
+                case ConsoleKey.D:
+                    direction = direction == Direction.Left ? direction : Direction.Right;
+                    break;
+                case ConsoleKey.W:
+                    direction = direction == Direction.Down ? direction : Direction.Up;
+                    break;
+                case ConsoleKey.S:
+                    direction = direction == Direction.Up ? direction : Direction.Down;
+                    break;
+            }
+        }
+    }
+
+    class Snake
+    {
+        public List<Point> Position;
+        public Snake()
+        {
+            var rnd = new Random();
+            Position = new List<Point>() { new Point(rnd.Next(0, Game.WindowWidth + 1), rnd.Next(0, Game.WindowHeight + 1)) };
+            Position.Add((Point)Position[0].Clone());
+        }
+    }
+
+    class Food
+    {
+        public Point Position;
+        public bool IsEaten;
+        public Food()
+        {
+            Position = new Point(30, 15);
+            IsEaten = true;
+        }
+
+        public void Update()
+        {
+            this.Position.X = new Random().Next(0, Game.WindowWidth + 1);
+            this.Position.Y = new Random().Next(0, Game.WindowHeight + 1);
+        }
+    }
+
+    class Point : ICloneable
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public Point(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
+        public static Point operator +(Point a, Point b)
+        {
+            var x = a.X + b.X < 0 ? Game.WindowWidth : a.X + b.X > Game.WindowWidth ? 0 : a.X + b.X;
+            var y = a.Y + b.Y < 0 ? Game.WindowHeight : a.Y + b.Y > Game.WindowHeight ? 0 : a.Y + b.Y;
+            return new Point(x, y);
+        }
+
+        public static bool operator ==(Point a, Point b)
+        {
+            return (a.X == b.X && a.Y == b.Y);
+        }
+
+        public static bool operator !=(Point a, Point b)
+        {
+            return (a.X == b.X && a.Y == b.Y);
+        }
+
+        public object Clone()
+        {
+            return new Point(X, Y) { X = this.X, Y = this.Y };
+        }
+    }
+    
+}
